@@ -9,14 +9,15 @@ typedef int(*compare_func_t)(const void* a, const void* b);
 
 int compareRows(const void* first_row, const void* second_row);
 void mySort(void* data, int count_line, size_t el_size, compare_func_t cmpfn);
-char* saveOnlyLetters(const void* row);
+char* saveOnlyLetters(const void* row, int* size_row);
 int countLines(char* text_poem, int size_text_poem);
 void findAddressLines(char* text_poem, unsigned long* line_poem, int size_text_poem);
 void printfResults(unsigned long* line_poem, int count_line);
+void printfPoem(char* text_poem, int size_text_poem);
 
 // TODO: прочитать про статические переменные
 
-int main(void) // TODO: РАЗБИТЬ НА ФУНКЦИИ
+int main(void)
 {
     FILE* eugene_onegin_text = fopen("EugeneOnegin.txt", "rb");
     if(eugene_onegin_text == NULL)
@@ -54,23 +55,42 @@ int main(void) // TODO: РАЗБИТЬ НА ФУНКЦИИ
 
     findAddressLines(text_poem, line_poem, size_text_poem);
 
-    int number_comparisons = count_line - 2;
+    int number_comparisons = count_line - 1;
     mySort(line_poem, number_comparisons, sizeof(unsigned long*), compareRows);
 
     printfResults(line_poem, count_line);
+
+    printfPoem(text_poem, size_text_poem);
 
     free(line_poem);
     free(text_poem);
     return 0;
 }
 
+void printfPoem(char* text_poem, int size_text_poem)
+{
+    for(int i = 0; i < size_text_poem - 1; i++)
+    {
+        if(text_poem[i] == '\0')
+        {
+            if(text_poem[i + 1] == '\0')
+            {
+                text_poem[i] = '\r';
+                text_poem[i + 1] = '\n';
+                continue;
+            }
+            text_poem[i + 1] = '\n';
+        }
+    }
+    printf("%s", text_poem);
+}
 
 void mySort(void* data, int number_comparisons, size_t el_size, compare_func_t cmpfn)
 {
-    printf("|[%ld]<%s>|\n", *((unsigned long*) data), (char*)*((unsigned long*) data));
+    //printf("|[%ld]<%s>|\n", *((unsigned long*) data), (char*)*((unsigned long*) data));
     for(int i = 0; i < number_comparisons; i++)
     {
-        for(int j = 0; j <= number_comparisons - i; j++)
+        for(int j = 0; j < number_comparisons - i; j++)
         {
             //printf("<%p><%p>\n", ((const char*)data + j * el_size), ((const char*)data +(j + 1) * el_size));
             if((*cmpfn)((const char*)data + j * el_size, (const char*)data +(j + 1) * el_size))
@@ -86,20 +106,22 @@ void mySort(void* data, int number_comparisons, size_t el_size, compare_func_t c
 int compareRows(const void* first_row, const void* second_row)
 {
     //printf("|[%p][%p]|\n", ((const char*) first_row), ((const char*) second_row));
-    char* cleared_first_row = saveOnlyLetters(first_row);
-    char* cleared_second_row = saveOnlyLetters(second_row);
+    int size_first = 0, size_second = 0;
+
+    char* cleared_first_row = saveOnlyLetters(first_row, &size_first);
+    char* cleared_second_row = saveOnlyLetters(second_row, &size_second);
 
     int flag = 0;
-    for(int i = 0; flag == 0; i++)
+    for(int i = 1; flag == 0; i++)
     {
-        if(cleared_first_row[i] == '\0' || cleared_second_row[i] == '\0')
+        if(i > size_first || i > size_second)
         {
             free(cleared_first_row);
             free(cleared_second_row);
             return 0;
         }
         //printf("cleared_first_row[%d] = %c cleared_second_row[%d] = %c\n", i, cleared_first_row[i], i, cleared_second_row[i]);
-        flag = (int) cleared_first_row[i] - (int) cleared_second_row[i];
+        flag = (int) cleared_first_row[size_first - i] - (int) cleared_second_row[size_second - i];
     }
 
     if(flag > 0)
@@ -114,31 +136,30 @@ int compareRows(const void* first_row, const void* second_row)
     return 0;
 }
 
-char* saveOnlyLetters(const void* row)
+char* saveOnlyLetters(const void* row, int* size_row)
 {
-    int size_row = 0;
     char flag = '0';
+
     for(int i = 0; flag != '\0'; i++)
     {
         //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
         if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
         {
-            size_row++;
+            (*size_row)++;
         }
+
         flag = (*((const char*)*((const unsigned long*) row) + i));
     }
-
-    char* cleared_row = (char*) calloc(size_row + 1, sizeof(char));
+    char* cleared_row = (char*) calloc(*size_row + 1, sizeof(char));
 
     if(cleared_row == NULL)
     {
         printf("Error: calloc");
         return NULL;
     }
-    cleared_row[size_row] = '\0';
+    cleared_row[*size_row] = '\0';
 
-    flag = '0';
-    for(int i = 0, j = 0; flag != '\0'; i++)
+    for(int i = 0, j = 0; j < *size_row; i++)
     {
         //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
         if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
@@ -148,6 +169,7 @@ char* saveOnlyLetters(const void* row)
         }
         flag = *((const char*)*((const unsigned long*) row) + i);
     }
+
     //printf("cleared_row = |%s|\n", cleared_row);
     return cleared_row;
 }
