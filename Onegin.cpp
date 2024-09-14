@@ -5,7 +5,14 @@
 
 #include "SkipLine.h"
 
-void sortRows(char** line_poem, const int count_line);
+typedef int(*compare_func_t)(const void* a, const void* b);
+
+int compareRows(const void* first_row, const void* second_row);
+void mySort(void* data, int count_line, size_t el_size, compare_func_t cmpfn);
+char* saveOnlyLetters(const void* row);
+int countLines(char* text_poem, int size_text_poem);
+void findAddressLines(char* text_poem, unsigned long* line_poem, int size_text_poem);
+void printfResults(unsigned long* line_poem, int count_line);
 
 // TODO: прочитать про статические переменные
 
@@ -27,97 +34,163 @@ int main(void) // TODO: РАЗБИТЬ НА ФУНКЦИИ
 
     if(text_poem == NULL)
     {
-        printf("Error: out of memory"); // TODO: error calloc
+        printf("Error: calloc");
         fclose(eugene_onegin_text);
         return 1;
     }
 
     fread(text_poem, sizeof(char), size_text_poem, eugene_onegin_text);
 
-    int count_line = 1;
-    for(int i = 0; i < size_text_poem - 1; i++)
+    fclose(eugene_onegin_text);
+
+    int count_line = countLines(text_poem, size_text_poem);
+
+    unsigned long* line_poem = (unsigned long*) calloc(count_line, sizeof(unsigned long));
+    if(line_poem == NULL)
     {
-        if(text_poem[i] == '\n') // TODO: \r -> \0 \n -> \0
-        {
-            count_line++;
-        }
+        printf("Error: calloc");
+        return 1;
     }
 
-    char** line_poem = (char**) calloc(count_line, sizeof(char*));
-    line_poem[0] = text_poem;
-    for(int i = 0, j = 1; i < size_text_poem - 1; i++)
-    {
-        if(text_poem[i] == '\n')
-        {
-            line_poem[j] = (text_poem + i + 1);
-            //printf("line_poem[%d] = %d; text_poem[%d + 1] = %c\n", j, line_poem[j], i, text_poem[i + 1]);
-            j++;
-        }
-    }
+    findAddressLines(text_poem, line_poem, size_text_poem);
 
-    sortRows(line_poem, count_line);
-    for(int j = 0; j < count_line; j++) // TODO: названия j -> str_number
-    {
-        printf("%d : ", j + 1);
-        for(int i = 0; (*((*(line_poem + j)) + i)) != '\n'; i++)
-        {
-            printf("%c", (*((*(line_poem + j)) + i))); // TODO: печатать построчно!!!
-        }
-        printf("\n");
-    }
+    int number_comparisons = count_line - 2;
+    mySort(line_poem, number_comparisons, sizeof(unsigned long*), compareRows);
+
+    printfResults(line_poem, count_line);
 
     free(line_poem);
     free(text_poem);
     return 0;
 }
 
-void sortRows(char** line_poem, const int count_line)
+
+void mySort(void* data, int number_comparisons, size_t el_size, compare_func_t cmpfn)
 {
-    char* slot = NULL;
-
-    for(int r = 2; r < count_line; r++) // TODO: подумать ещё раз (раз десять...)
+    printf("|[%ld]<%s>|\n", *((unsigned long*) data), (char*)*((unsigned long*) data));
+    for(int i = 0; i < number_comparisons; i++)
     {
-        for(int j = 0; j <= count_line - r; j++)
+        for(int j = 0; j <= number_comparisons - i; j++)
         {
-            int skip_not_letter_first = 0, skip_not_letter_second = 0;
-            for(int i = 0, k = 0; k == 0; i++)
+            //printf("<%p><%p>\n", ((const char*)data + j * el_size), ((const char*)data +(j + 1) * el_size));
+            if((*cmpfn)((const char*)data + j * el_size, (const char*)data +(j + 1) * el_size))
             {
-                printf("|%d||%d|\n", (*((*(line_poem + j)) + i + skip_not_letter_first)), (*((*(line_poem + 1 + j)) + i + skip_not_letter_second)));
-                if((isalpha(*((*(line_poem + j)) + i + skip_not_letter_first))) == 0)
-                {
-                    skip_not_letter_first++;
-                    i--;
-                    continue;
-                }
-
-                if((isalpha(*((*(line_poem + 1 + j)) + i + skip_not_letter_second))) == 0)
-                {
-                    skip_not_letter_second++;
-                    i--;
-                    continue;
-                }
-
-                printf("{%d}{%d}\n", (*((*(line_poem + j)) + i + skip_not_letter_first)), (*((*(line_poem + 1 + j)) + i + skip_not_letter_second)));
-                printf("[%d][%d]\n", skip_not_letter_first, skip_not_letter_second);
-
-                k = (int (tolower(*((*(line_poem + j)) + i + skip_not_letter_first)))) -
-                    (int (tolower(*((*(line_poem + 1 + j)) + i + skip_not_letter_second))));
-
-                printf("<%.10s><%.10s>\n", (*(line_poem + j)), (*(line_poem + j + 1)));
-                printf("<%c><%c>\n", (*((*(line_poem + j)) + i + skip_not_letter_first)), (*((*(line_poem + 1 + j)) + i + skip_not_letter_second)));
-
-                if(0 < (int (tolower(*((*(line_poem + j)) + i + skip_not_letter_first)))) -
-                       (int (tolower(*((*(line_poem + 1 + j)) + i + skip_not_letter_second)))))
-                {
-                    slot = (*(line_poem + j));
-                    line_poem[j] = (*(line_poem + j + 1));
-                    line_poem[j + 1] = slot;
-                    printf("[%.10s][%.10s]\n", (*(line_poem + j)), (*(line_poem + j + 1)));
-                    break;
-                }
+                unsigned long slot = *((unsigned long*)((char*)data + j * el_size));
+                *((unsigned long*)((char*)data + j * el_size)) = *((unsigned long*)((char*)data + (j + 1) * el_size));
+                *((unsigned long*)((char*)data + (j + 1) * el_size)) = slot;
             }
-            printf("j = :%d:\n", j);
         }
-        printf("r = :%d:\n", r);
     }
+}
+
+int compareRows(const void* first_row, const void* second_row)
+{
+    //printf("|[%p][%p]|\n", ((const char*) first_row), ((const char*) second_row));
+    char* cleared_first_row = saveOnlyLetters(first_row);
+    char* cleared_second_row = saveOnlyLetters(second_row);
+
+    int flag = 0;
+    for(int i = 0; flag == 0; i++)
+    {
+        if(cleared_first_row[i] == '\0' || cleared_second_row[i] == '\0')
+        {
+            free(cleared_first_row);
+            free(cleared_second_row);
+            return 0;
+        }
+        //printf("cleared_first_row[%d] = %c cleared_second_row[%d] = %c\n", i, cleared_first_row[i], i, cleared_second_row[i]);
+        flag = (int) cleared_first_row[i] - (int) cleared_second_row[i];
+    }
+
+    if(flag > 0)
+    {
+        free(cleared_first_row);
+        free(cleared_second_row);
+        return 1;
+    }
+
+    free(cleared_first_row);
+    free(cleared_second_row);
+    return 0;
+}
+
+char* saveOnlyLetters(const void* row)
+{
+    int size_row = 0;
+    char flag = '0';
+    for(int i = 0; flag != '\0'; i++)
+    {
+        //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
+        if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
+        {
+            size_row++;
+        }
+        flag = (*((const char*)*((const unsigned long*) row) + i));
+    }
+
+    char* cleared_row = (char*) calloc(size_row + 1, sizeof(char));
+
+    if(cleared_row == NULL)
+    {
+        printf("Error: calloc");
+        return NULL;
+    }
+    cleared_row[size_row] = '\0';
+
+    flag = '0';
+    for(int i = 0, j = 0; flag != '\0'; i++)
+    {
+        //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
+        if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
+        {
+            cleared_row[j] = (char) tolower((*((const char*)*((const unsigned long*) row) + i)));
+            j++;
+        }
+        flag = *((const char*)*((const unsigned long*) row) + i);
+    }
+    //printf("cleared_row = |%s|\n", cleared_row);
+    return cleared_row;
+}
+
+void printfResults(unsigned long* line_poem, int count_line)
+{
+    for(int j = 0; j < count_line; j++)
+    {
+        printf("%d : %s\n", j + 1, (char*) line_poem[j]);
+    }
+}
+
+void findAddressLines(char* text_poem, unsigned long* line_poem, int size_text_poem)
+{
+    line_poem[0] = (unsigned long)&text_poem[0];
+    //printf("line_poem[0] = <%ld> \"%s\"; text_poem[0] = %c\n", line_poem[0], (char*)line_poem[0], text_poem[0]);
+
+    for(int i = 0, j = 1; i < size_text_poem - 1; i++)
+    {
+        if(text_poem[i] == '\0' && text_poem[i + 1] != '\0')
+        {
+            line_poem[j] = (unsigned long)&text_poem[i + 1];
+            //printf("line_poem[%d] = <%ld> \"%s\"; text_poem[%d] = %c\n", j, line_poem[j], (char*)line_poem[j], i + 1, text_poem[i + 1]);
+            j++;
+        }
+    }
+}
+
+int countLines(char* text_poem, int size_text_poem)
+{
+    int count_line = 0;
+    for(int i = 0; i < size_text_poem; i++)
+    {
+        if(text_poem[i] == '\r')
+        {
+            text_poem[i] = '\0';
+        }
+
+        if(text_poem[i] == '\n')
+        {
+            count_line++;
+            text_poem[i] = '\0';
+        }
+    }
+    return count_line;
 }
