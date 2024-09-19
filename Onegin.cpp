@@ -2,216 +2,336 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <assert.h>
 
-#include "SkipLine.h"
+typedef int(*compare_func_t)(void* a, void* b);
 
-typedef int(*compare_func_t)(const void* a, const void* b);
+struct File_Information{
+    FILE* file_address;
+    long  text_size;
+    char* text_address;
+    int   number_of_lines;
+    char* clear_text_roman;
+};
 
-int compareRows(const void* first_row, const void* second_row);
-void mySort(void* data, int count_line, size_t el_size, compare_func_t cmpfn);
-char* saveOnlyLetters(const void* row, int* size_row);
-int countLines(char* text_poem, int size_text_poem);
-void findAddressLines(char* text_poem, unsigned long* line_poem, int size_text_poem);
-void printfResults(unsigned long* line_poem, int count_line);
-void printfPoem(char* text_poem, int size_text_poem);
+struct Line_Information{
+    char* line_address;
+    char* clear_line_address;
+    int   size_clear_line;
+};
 
-// TODO: прочитать про статические переменные
+enum NumberOfErrors{
+    NO_ERROR     = 0,
+    CALLOC_ERROR = 1,
+    STAT_ERROR   = 2,
+    READ_ERROR   = 3
+};
+
+int compareRows(void* first_struct, void* second_struct);
+int countLines(char* const text_roman, const int size_text_roman);
+void mySort(void* data, const int number_comparisons, size_t el_size, compare_func_t comparator);
+NumberOfErrors readFile(File_Information* eugene_onegin);
+NumberOfErrors printfResults(Line_Information* lines_roman, const int count_line);
+NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman);
+NumberOfErrors getDataAboutLines(char* text_roman, char* clear_text_roman, Line_Information* lines_roman,
+                                 int size_text_roman);
+
 
 int main(void)
 {
-    FILE* eugene_onegin_text = fopen("EugeneOnegin.txt", "rb");
-    if(eugene_onegin_text == NULL)
+    NumberOfErrors check_errors = NO_ERROR;
+    File_Information eugene_onegin = {0, 0, 0, 0};
+
+    check_errors = readFile(&eugene_onegin);
+    if(check_errors != NO_ERROR)
+    {
+        fprintf(stderr, "Error: reading fail");
+        return READ_ERROR;
+    }
+
+    eugene_onegin.number_of_lines = countLines(eugene_onegin.text_address, eugene_onegin.text_size);
+
+    Line_Information* lines_roman = (Line_Information*) calloc(eugene_onegin.number_of_lines,
+                                                               sizeof(Line_Information));
+    if(lines_roman == NULL)
+    {
+        free(eugene_onegin.text_address);
+        fprintf(stderr, "Error: calloc");
+        return CALLOC_ERROR;
+    }
+
+    check_errors = getDataAboutLines(eugene_onegin.text_address, eugene_onegin.clear_text_roman,
+                                     lines_roman, eugene_onegin.text_size);
+    if(check_errors != NO_ERROR)
+    {
+        fprintf(stderr, "Error: calloc");
+        free(eugene_onegin.text_address);
+        free(lines_roman);
+        return CALLOC_ERROR;
+    }
+
+    const int number_comparisons = eugene_onegin.number_of_lines - 1;
+    mySort(lines_roman, number_comparisons, sizeof(Line_Information), compareRows);
+
+    check_errors = printfResults(lines_roman, eugene_onegin.number_of_lines);
+    if(check_errors != NO_ERROR)
+    {
+        printf("Error: reading fail");
+        free(eugene_onegin.clear_text_roman);
+        free(lines_roman);
+        free(eugene_onegin.text_address);
+        return READ_ERROR;
+    }
+
+    check_errors = printfOriginalPoem(eugene_onegin.text_address, eugene_onegin.text_size);
+    if(check_errors != NO_ERROR)
+    {
+        printf("Error: reading fail");
+        free(eugene_onegin.clear_text_roman);
+        free(lines_roman);
+        free(eugene_onegin.text_address);
+        return READ_ERROR;
+    }
+
+    free(eugene_onegin.clear_text_roman);
+    free(lines_roman);
+    free(eugene_onegin.text_address);
+
+    return NO_ERROR;
+}
+
+NumberOfErrors readFile(File_Information* eugene_onegin)
+{
+    struct stat file_info;
+
+    if(stat("EugeneOnegin.txt", &file_info) == -1)
+    {
+        return STAT_ERROR;
+    }
+    eugene_onegin->text_size = file_info.st_size;
+
+    eugene_onegin->file_address = fopen("EugeneOnegin.txt", "rb");
+    if(eugene_onegin->file_address == NULL)
     {
         fprintf(stderr, "Error: file not open");
-        return 1;
+        return READ_ERROR;
     }
 
-    fseek(eugene_onegin_text, 0, SEEK_END);
-    long size_text_poem = ftell(eugene_onegin_text);
-    rewind (eugene_onegin_text);
+    eugene_onegin->text_address = (char* const) calloc(eugene_onegin->text_size + 1, sizeof(char));
 
-    char* text_poem = (char*) calloc(size_text_poem + 1, sizeof(char));
-    text_poem[size_text_poem] = '\0';
-
-    if(text_poem == NULL)
+    if(eugene_onegin->text_address == NULL)
     {
-        printf("Error: calloc");
-        fclose(eugene_onegin_text);
-        return 1;
+        fprintf(stderr, "Error: calloc");
+        fclose(eugene_onegin->file_address);
+        return CALLOC_ERROR;
     }
+    eugene_onegin->text_address[eugene_onegin->text_size] = '\0';
 
-    fread(text_poem, sizeof(char), size_text_poem, eugene_onegin_text);
+    fread(eugene_onegin->text_address, sizeof(char), eugene_onegin->text_size, eugene_onegin->file_address);
 
-    fclose(eugene_onegin_text);
+    fclose(eugene_onegin->file_address);
 
-    int count_line = countLines(text_poem, size_text_poem);
-
-    unsigned long* line_poem = (unsigned long*) calloc(count_line, sizeof(unsigned long));
-    if(line_poem == NULL)
-    {
-        printf("Error: calloc");
-        return 1;
-    }
-
-    findAddressLines(text_poem, line_poem, size_text_poem);
-
-    int number_comparisons = count_line - 1;
-    mySort(line_poem, number_comparisons, sizeof(unsigned long*), compareRows);
-
-    printfResults(line_poem, count_line);
-
-    printfPoem(text_poem, size_text_poem);
-
-    free(line_poem);
-    free(text_poem);
-    return 0;
+    return NO_ERROR;
 }
 
-void printfPoem(char* text_poem, int size_text_poem)
+NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman)
 {
-    for(int i = 0; i < size_text_poem - 1; i++)
+    assert(text_roman != NULL);
+
+    for(int i = 0; i < size_text_roman - 1; i++)
     {
-        if(text_poem[i] == '\0')
+        if(text_roman[i] == '\0')
         {
-            if(text_poem[i + 1] == '\0')
+            if(text_roman[i + 1] == '\0')
             {
-                text_poem[i] = '\r';
-                text_poem[i + 1] = '\n';
+                text_roman[i]     = '\r';
+                text_roman[i + 1] = '\n';
                 continue;
             }
-            text_poem[i + 1] = '\n';
+            text_roman[i + 1] = '\n';
         }
     }
-    printf("%s", text_poem);
+
+    FILE* eugene_onegin_sort_file = fopen("EugeneOneginSort.txt", "ab");
+    if(eugene_onegin_sort_file == NULL)
+    {
+        return READ_ERROR;
+    }
+
+    fprintf(eugene_onegin_sort_file, "\nOriginal:\n\n");
+    fprintf(eugene_onegin_sort_file, "%s", text_roman);
+
+    fclose(eugene_onegin_sort_file);
+
+    return NO_ERROR;
 }
 
-void mySort(void* data, int number_comparisons, size_t el_size, compare_func_t cmpfn)
+void mySort(void* data, const int number_comparisons, size_t el_size, compare_func_t comporator)
 {
-    //printf("|[%ld]<%s>|\n", *((unsigned long*) data), (char*)*((unsigned long*) data));
+    assert(data != NULL);
+    assert(el_size != 0);
+    assert(comporator != NULL);
+
+    //printf("(%s)(%s)\n", ((Line_Information*)data)[0].line_address, ((Line_Information*)data)[0].clear_line_address);
+
+    char one_byte = 0;
+
     for(int i = 0; i < number_comparisons; i++)
     {
         for(int j = 0; j < number_comparisons - i; j++)
         {
-            //printf("<%p><%p>\n", ((const char*)data + j * el_size), ((const char*)data +(j + 1) * el_size));
-            if((*cmpfn)((const char*)data + j * el_size, (const char*)data +(j + 1) * el_size))
+            //printf("befor :(%s)(%s)\n", ((Line_Information*)data)[j].clear_line_address, ((Line_Information*)data)[j + 1].clear_line_address);
+            if((*comporator)((char*)data + j * el_size, (char*)data +(j + 1) * el_size))
             {
-                unsigned long slot = *((unsigned long*)((char*)data + j * el_size));
-                *((unsigned long*)((char*)data + j * el_size)) = *((unsigned long*)((char*)data + (j + 1) * el_size));
-                *((unsigned long*)((char*)data + (j + 1) * el_size)) = slot;
+                for(unsigned int r = 0; r < el_size; r++)
+                {
+                    one_byte = ((char*)data + j * el_size)[r];
+                    ((char*)data + j * el_size)[r] = ((char*)data + (j + 1) * el_size)[r];
+                    ((char*)data + (j + 1) * el_size)[r] = one_byte; // TODO: ПРЕКРАТИТЬ ХУЙНЮ
+                }
             }
+            //printf("after :(%s)(%s)\n", ((Line_Information*)data)[j].clear_line_address, ((Line_Information*)data)[j + 1].clear_line_address);
         }
     }
 }
 
-int compareRows(const void* first_row, const void* second_row)
+int compareRows(void* first_struct, void* second_struct)
 {
-    //printf("|[%p][%p]|\n", ((const char*) first_row), ((const char*) second_row));
-    int size_first = 0, size_second = 0;
+    assert(first_struct  != NULL);
+    assert(second_struct != NULL);
 
-    char* cleared_first_row = saveOnlyLetters(first_row, &size_first);
-    char* cleared_second_row = saveOnlyLetters(second_row, &size_second);
+    //printf("sorts :|%s||%s|\n", (((Line_Information*)first_struct)[0].clear_line_address), (((Line_Information*)second_struct)[0].clear_line_address));
 
-    int flag = 0;
-    for(int i = 1; flag == 0; i++)
+    char* first_line  = (((Line_Information*)first_struct )->clear_line_address);
+    char* second_line = (((Line_Information*)second_struct)->clear_line_address);
+
+    int size_first_line  = (((Line_Information*)first_struct )->size_clear_line) - 1;
+    int size_second_line = (((Line_Information*)second_struct)->size_clear_line) - 1;
+
+    int step_back = 0;
+    while(first_line[size_first_line - step_back] - second_line[size_second_line - step_back] == 0)
     {
-        if(i > size_first || i > size_second)
+        if(first_line[size_first_line - step_back] == '\0')
         {
-            free(cleared_first_row);
-            free(cleared_second_row);
+            return 1;
+        }
+        if(second_line[size_second_line - step_back] == '\0')
+        {
             return 0;
         }
-        //printf("cleared_first_row[%d] = %c cleared_second_row[%d] = %c\n", i, cleared_first_row[i], i, cleared_second_row[i]);
-        flag = (int) cleared_first_row[size_first - i] - (int) cleared_second_row[size_second - i];
+        step_back++;
     }
 
-    if(flag > 0)
+    if(first_line[size_first_line - step_back] - second_line[size_second_line - step_back] < 0)
     {
-        free(cleared_first_row);
-        free(cleared_second_row);
-        return 1;
+        return 0;
     }
-
-    free(cleared_first_row);
-    free(cleared_second_row);
-    return 0;
+    return 1;
 }
 
-char* saveOnlyLetters(const void* row, int* size_row)
+NumberOfErrors printfResults(Line_Information* lines_roman, const int count_line)
 {
-    char flag = '0';
+    assert(lines_roman != NULL);
 
-    for(int i = 0; flag != '\0'; i++)
+    FILE* eugene_onegin_sort_file = fopen("EugeneOneginSort.txt", "w");
+    if(eugene_onegin_sort_file == NULL)
     {
-        //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
-        if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
-        {
-            (*size_row)++;
-        }
-
-        flag = (*((const char*)*((const unsigned long*) row) + i));
-    }
-    char* cleared_row = (char*) calloc(*size_row + 1, sizeof(char));
-
-    if(cleared_row == NULL)
-    {
-        printf("Error: calloc");
-        return NULL;
-    }
-    cleared_row[*size_row] = '\0';
-
-    for(int i = 0, j = 0; j < *size_row; i++)
-    {
-        //printf("<%c>[%ld]\n", *((const char*)*((const unsigned long*) row) + i), *((((const unsigned long*) row) + i)));
-        if(isalpha(*((const char*)*((const unsigned long*) row) + i)))
-        {
-            cleared_row[j] = (char) tolower((*((const char*)*((const unsigned long*) row) + i)));
-            j++;
-        }
-        flag = *((const char*)*((const unsigned long*) row) + i);
+        fprintf(stderr, "Error: file not open");
+        return READ_ERROR;
     }
 
-    //printf("cleared_row = |%s|\n", cleared_row);
-    return cleared_row;
-}
-
-void printfResults(unsigned long* line_poem, int count_line)
-{
+    fprintf(eugene_onegin_sort_file, "Sort:\n\n");
     for(int j = 0; j < count_line; j++)
     {
-        printf("%d : %s\n", j + 1, (char*) line_poem[j]);
+        fprintf(eugene_onegin_sort_file, "%s\n", lines_roman[j].line_address);
     }
+    fclose(eugene_onegin_sort_file);
+    return NO_ERROR;
 }
 
-void findAddressLines(char* text_poem, unsigned long* line_poem, int size_text_poem)
+NumberOfErrors getDataAboutLines(char* text_roman, char* clear_text_roman,
+                                 Line_Information* lines_roman, int size_text_roman)
 {
-    line_poem[0] = (unsigned long)&text_poem[0];
-    //printf("line_poem[0] = <%ld> \"%s\"; text_poem[0] = %c\n", line_poem[0], (char*)line_poem[0], text_poem[0]);
+    assert(text_roman  != NULL);
+    assert(lines_roman != NULL);
 
-    for(int i = 0, j = 1; i < size_text_poem - 1; i++)
+    int line_counter = 1;
+    for(int i = 0, r = 0; i < size_text_roman; i++, r++)
     {
-        if(text_poem[i] == '\0' && text_poem[i + 1] != '\0')
+        (lines_roman[r]).line_address = &text_roman[i];
+        line_counter++;
+
+        while(text_roman[i] != '\0')
         {
-            line_poem[j] = (unsigned long)&text_poem[i + 1];
-            //printf("line_poem[%d] = <%ld> \"%s\"; text_poem[%d] = %c\n", j, line_poem[j], (char*)line_poem[j], i + 1, text_poem[i + 1]);
-            j++;
+            i++;
+        }
+        if(text_roman[i + 1] == '\0')
+        {
+            i++;
         }
     }
+
+    int clear_text_size = line_counter;
+    for(int i = 0; i < size_text_roman; i++)
+    {
+        if(isalpha(text_roman[i]))
+        {
+            clear_text_size++;
+        }
+    }
+
+    clear_text_roman = (char*) calloc(clear_text_size, sizeof(char));
+    if(clear_text_roman == NULL)
+    {
+        return CALLOC_ERROR;
+    }
+
+    for(int i = 0, line_number = 0, r = 0;
+        i < size_text_roman;
+        i++, line_number++)
+    {
+        lines_roman[line_number].clear_line_address = &clear_text_roman[r];
+
+        int size_clear_line = 0;
+        while(text_roman[i] != '\0')
+        {
+            if(isalpha(text_roman[i]))
+            {
+                clear_text_roman[r] = (char)tolower(text_roman[i]);
+                size_clear_line++;
+                r++;
+            }
+            i++;
+        }
+
+        if(text_roman[i + 1] == '\0')
+        {
+            i++;
+        }
+        clear_text_roman[r + 1] = '\0';
+        r++;
+        lines_roman[line_number].size_clear_line = size_clear_line;
+    //printf("{%s}{%s}\n",lines_roman[n].line_address, lines_roman[n].clear_line_address);
+    }
+    return NO_ERROR;
 }
 
-int countLines(char* text_poem, int size_text_poem)
+int countLines(char* const text_roman, const int size_text_roman)
 {
+    assert(text_roman != NULL);
+
     int count_line = 0;
-    for(int i = 0; i < size_text_poem; i++)
+    for(int i = 0; i < size_text_roman; i++)
     {
-        if(text_poem[i] == '\r')
+        if(text_roman[i] == '\r')
         {
-            text_poem[i] = '\0';
+            text_roman[i] = '\0';
         }
 
-        if(text_poem[i] == '\n')
+        if(text_roman[i] == '\n')
         {
+            text_roman[i] = '\0';
             count_line++;
-            text_poem[i] = '\0';
         }
     }
     return count_line;
