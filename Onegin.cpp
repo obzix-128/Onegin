@@ -8,10 +8,10 @@ typedef int(*compare_func_t)(void* a, void* b);
 
 struct File_Information{
     FILE* file_address;
-    long  text_size;
     char* text_address;
-    int   number_of_lines;
     char* clear_text_roman;
+    long  text_size;
+    int   number_of_lines;
 };
 
 struct Line_Information{
@@ -29,18 +29,18 @@ enum NumberOfErrors{
 
 int compareRows(void* first_struct, void* second_struct);
 int countLines(char* const text_roman, const int size_text_roman);
-void mySort(void* data, const int number_comparisons, size_t el_size, compare_func_t comparator);
+void mySort(void* data, const int number_comparisons, const size_t el_size, compare_func_t comparator);
 NumberOfErrors readFile(File_Information* eugene_onegin);
 NumberOfErrors printfResults(Line_Information* lines_roman, const int count_line);
-NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman);
-NumberOfErrors getDataAboutLines(char* text_roman, char* clear_text_roman, Line_Information* lines_roman,
-                                 int size_text_roman);
+NumberOfErrors printfOriginalPoem(char* const text_roman, const int size_text_roman);
+NumberOfErrors getDataAboutLines(char* const text_roman, char* clear_text_roman, Line_Information* lines_roman,
+                                 const int size_text_roman);
 
 
 int main(void)
 {
     NumberOfErrors check_errors = NO_ERROR;
-    File_Information eugene_onegin = {0, 0, 0, 0};
+    File_Information eugene_onegin = {0, 0, 0, 0, 0};
 
     check_errors = readFile(&eugene_onegin);
     if(check_errors != NO_ERROR)
@@ -118,7 +118,6 @@ NumberOfErrors readFile(File_Information* eugene_onegin)
     }
 
     eugene_onegin->text_address = (char* const) calloc(eugene_onegin->text_size + 1, sizeof(char));
-
     if(eugene_onegin->text_address == NULL)
     {
         fprintf(stderr, "Error: calloc");
@@ -134,11 +133,11 @@ NumberOfErrors readFile(File_Information* eugene_onegin)
     return NO_ERROR;
 }
 
-NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman)
+NumberOfErrors printfOriginalPoem(char* const text_roman, const int size_text_roman)
 {
     assert(text_roman != NULL);
 
-    for(int i = 0; i < size_text_roman - 1; i++)
+    for(int i = 0; i < size_text_roman; i++)
     {
         if(text_roman[i] == '\0')
         {
@@ -146,6 +145,7 @@ NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman)
             {
                 text_roman[i]     = '\r';
                 text_roman[i + 1] = '\n';
+                i++;
                 continue;
             }
             text_roman[i + 1] = '\n';
@@ -166,7 +166,7 @@ NumberOfErrors printfOriginalPoem(char* const text_roman, int size_text_roman)
     return NO_ERROR;
 }
 
-void mySort(void* data, const int number_comparisons, size_t el_size, compare_func_t comporator)
+void mySort(void* data, const int number_comparisons, const size_t el_size, compare_func_t comporator)
 {
     assert(data != NULL);
     assert(el_size != 0);
@@ -249,8 +249,8 @@ NumberOfErrors printfResults(Line_Information* lines_roman, const int count_line
     return NO_ERROR;
 }
 
-NumberOfErrors getDataAboutLines(char* text_roman, char* clear_text_roman,
-                                 Line_Information* lines_roman, int size_text_roman)
+NumberOfErrors getDataAboutLines(char* const text_roman, char* clear_text_roman,
+                                 Line_Information* lines_roman, const int size_text_roman)
 {
     assert(text_roman  != NULL);
     assert(lines_roman != NULL);
