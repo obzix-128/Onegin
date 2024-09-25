@@ -1,5 +1,5 @@
-#include "Main.h"
-#include "MySort.h"
+#include "../include/Main.h"
+#include "../include/MySort.h"
 
 
 void mySort(void* data, const int number_comparisons, const size_t el_size, compare_func_t comporator)

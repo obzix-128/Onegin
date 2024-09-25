@@ -1,5 +1,5 @@
-#include "Main.h"
-#include "Comporators.h"
+#include "../include/Main.h"
+#include "../include/Comporators.h"
 
 
 int frontRowComparison(const void* first_struct, const void* second_struct)

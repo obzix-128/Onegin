@@ -1,9 +1,9 @@
-#include "Main.h"
-#include "ReadAndWrite.h"
-#include "TextHandler.h"
+#include "../include/Main.h"
+#include "../include/ReadAndWrite.h"
+#include "../include/TextHandler.h"
 
 
-NumberOfErrors readFile(File_Information* eugene_onegin, const char* const file_name, unsigned long* get_address)
+ErrorName readFile(File_Information* eugene_onegin, const char* const file_name, unsigned long* get_address)
 {
     struct stat file_info = {};
 
@@ -32,7 +32,7 @@ NumberOfErrors readFile(File_Information* eugene_onegin, const char* const file_
 
     fclose(eugene_onegin->file_address);
 
-    NumberOfErrors check_errors = NO_ERROR;
+    ErrorName check_errors = NO_ERROR;
 
     eugene_onegin->number_of_lines = countLines(eugene_onegin->text_address, eugene_onegin->text_size);
 
@@ -58,13 +58,18 @@ NumberOfErrors readFile(File_Information* eugene_onegin, const char* const file_
     return NO_ERROR;
 }
 
-NumberOfErrors printfResults(Line_Information* lines_novel, const char* const file_name,
+ErrorName printfResults(Line_Information* lines_novel, const char* const file_name,
                              char* const text_novel, const int count_line, const int size_text_novel)
 {
     assert(lines_novel != NULL);
     assert(text_novel  != NULL);
+    assert(file_name   != NULL);
 
-    char* file_to_write = (char*) calloc(strlen(file_name) + 4, sizeof(char)); //TODO: const?
+    char* file_to_write = (char*) calloc(strlen(file_name) + 6, sizeof(char)); //TODO: const?
+    if(file_to_write == NULL)
+    {
+        return CALLOC_ERROR;
+    }
     sprintf(file_to_write, "Sort%s", file_name);
 
     FILE* eugene_onegin_sort_file = fopen(file_to_write, "w");

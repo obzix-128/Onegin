@@ -1,7 +1,7 @@
 #ifndef ERRORHANDLER_H
 #define ERRORHANDLER_H
 
-enum NumberOfErrors{
+enum ErrorName{
     NO_ERROR      = 0,
     CALLOC_ERROR  = 1,
     STAT_ERROR    = 2,
@@ -9,6 +9,6 @@ enum NumberOfErrors{
     UNKNOWN_ERROR = 4
 };
 
-NumberOfErrors errorHandler(NumberOfErrors error);
+void errorHandler(ErrorName error);
 
 #endif // ERRORHANDLER_H

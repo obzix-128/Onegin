@@ -1,21 +1,21 @@
-#include "Main.h" // TODO: Два enter-a?
-#include "ReadAndWrite.h"
-#include "Comporators.h"
-#include "MySort.h"
+#include "../include/Main.h" // TODO: Два enter-a?
+#include "../include/ReadAndWrite.h"
+#include "../include/Comporators.h"
+#include "../include/MySort.h"
+
 
 int main(const int argc, const char** argv)
 {
-    const int MIN_ARG_COUNT = 2;
-    const int MAX_ARG_COUNT = 3;
-
-    if(argc < MIN_ARG_COUNT || argc > MAX_ARG_COUNT)
+    if(argv[1][0] != '-')
     {
         printf("To work with the program, select a mode, to "
-                "view the list of modes, enter [-h] after the program name.");
+               "view the list of modes, enter [-h] after the program name.");
         return NO_ERROR;
     }
 
-    if(argv[1][1] == 'h')
+    if(strcmp(argv[1], "-h") == 0 &&
+       strcmp(argv[1], "-f") == 0 &&
+       strcmp(argv[1], "-b") == 0)
     {
         printf("[-h] - Help with the program.\n"
                "[-f] - Sorting by line beginnings. After the \"-f\", specify "
@@ -25,25 +25,33 @@ int main(const int argc, const char** argv)
                return NO_ERROR;
     }
 
-    NumberOfErrors check_errors = NO_ERROR;
+    const int ARG_COUNT = 3;
+
+    if(argc != ARG_COUNT)
+    {
+        printf("To work with the program, select a mode, to "
+                "view the list of modes, enter [-h] after the program name.");
+        return NO_ERROR;
+    }
+
+    ErrorName check_errors = NO_ERROR;
     File_Information eugene_onegin = {};
     Line_Information* lines_novel  = NULL;
     unsigned long get_address = 0;
 
+    if(argv[2] == NULL)
+    {
+        errorHandler(UNKNOWN_ERROR);
+        return UNKNOWN_ERROR;
+    }
     check_errors = readFile(&eugene_onegin, argv[2], &get_address);
+
     if(check_errors != NO_ERROR)
     {
         errorHandler(check_errors);
-        return NO_ERROR;
+        return check_errors;
     }
     lines_novel = (Line_Information*) get_address;
-
-    if(argv[1][0] != '-')
-    {
-        printf("To work with the program, select a mode, to "
-               "view the list of modes, enter [-h] after the program name.");
-        return NO_ERROR;
-    }
 
     switch(argv[1][1])
     {

@@ -1,5 +1,5 @@
-#include "Main.h"
-#include "TextHandler.h"
+#include "../include/Main.h"
+#include "../include/TextHandler.h"
 
 
 int countLines(char* const text_novel, const int size_text_novel)
@@ -29,7 +29,7 @@ int countLines(char* const text_novel, const int size_text_novel)
     return count_line;
 }
 
-NumberOfErrors getDataAboutLines(Line_Information* lines_novel, char* const text_novel, char* clear_text_novel,
+ErrorName getDataAboutLines(Line_Information* lines_novel, char* const text_novel, char* clear_text_novel,
                                  const int size_text_novel)
 {
     assert(text_novel  != NULL);

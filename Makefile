@@ -8,15 +8,15 @@ FLAGS := -Wshadow -Winit-self -Wredundant-decls -Wcast-align -Wundef -Wfloat-equ
 		-D_DEBUG -D_EJUDGE_CLIENT_SIDE
 
 CC := g++
-objects := $(patsubst %.cpp, ForFile_o/%.o,$(wildcard *.cpp))
+objects := $(patsubst source/%.cpp, objects/%.o, $(wildcard source/*.cpp))
 
 all: do.exe
 
 do.exe: $(objects)
 	@$(CC) $^ $(FLAGS) -o $@
 
-ForFile_o/%.o: %.cpp
+objects/%.o: source/%.cpp
 	@$(CC) -c $^ $(FLAGS) -o $@
 
 clean:
-	@rm -rf ForFile_o/*.o do
+	@rm -rf objects/*.o do

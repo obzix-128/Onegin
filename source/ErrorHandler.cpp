@@ -1,16 +1,15 @@
-#include "Main.h"
-#include "ErrorHandler.h"
+#include "../include/Main.h"
+#include "../include/ErrorHandler.h"
 
 
-NumberOfErrors errorHandler(NumberOfErrors error)
+void errorHandler(ErrorName error)
 {
     switch(error)
     {
         case NO_ERROR:
         {
-            fprintf(stderr, "Unknown error.\n");
+            fprintf(stderr, "No errors were found.\n");
 
-            return UNKNOWN_ERROR;
             break;
         }
         case CALLOC_ERROR:
@@ -35,17 +34,13 @@ NumberOfErrors errorHandler(NumberOfErrors error)
         {
             fprintf(stderr, "Unknown error.\n");
 
-            return NO_ERROR;
             break;
         }
         default:
         {
             fprintf(stderr, "Unknown error.\n");
 
-            return UNKNOWN_ERROR;
             break;
         }
     }
-
-    return NO_ERROR;
 }
