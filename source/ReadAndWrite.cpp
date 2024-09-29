@@ -3,7 +3,7 @@
 #include "../include/TextHandler.h"
 
 
-ErrorName readFile(File_Information* eugene_onegin, const char* const file_name, unsigned long* get_address)
+ErrorName readFile(File_Information* eugene_onegin, const char* const file_name, Line_Information** lines_novel)
 {
     struct stat file_info = {};
 
@@ -36,21 +36,20 @@ ErrorName readFile(File_Information* eugene_onegin, const char* const file_name,
 
     eugene_onegin->number_of_lines = countLines(eugene_onegin->text_address, eugene_onegin->text_size);
 
-    Line_Information* lines_novel = (Line_Information*) calloc(eugene_onegin->number_of_lines, sizeof(Line_Information));
+    *lines_novel = (Line_Information*) calloc(eugene_onegin->number_of_lines, sizeof(Line_Information));
     if(lines_novel == NULL)
     {
         free(eugene_onegin->text_address);
         errorHandler(check_errors);
         return NO_ERROR;
     }
-    *get_address = (unsigned long) lines_novel; //TODO: ?
 
-    check_errors = getDataAboutLines(lines_novel, eugene_onegin->text_address, eugene_onegin->clear_text_novel,
+    check_errors = getDataAboutLines(*lines_novel, eugene_onegin->text_address, eugene_onegin->clear_text_novel,
                                      eugene_onegin->text_size);
     if(check_errors != NO_ERROR)
     {
         free(eugene_onegin->text_address);
-        free(lines_novel);
+        free(*lines_novel);
         errorHandler(check_errors);
         return NO_ERROR;
     }
